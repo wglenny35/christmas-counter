@@ -1,0 +1,415 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Christmas Countdown</title>
+<style>
+  /* Presentation-sized 16:9 container (1920x1080) and responsive scaling */
+  :root{
+    --bg:#071122;
+    --card-bg: rgba(255,255,255,0.03);
+    --accent: #ffdd57;
+    --muted: rgba(255,255,255,0.6);
+    --glass: rgba(255,255,255,0.04);
+  }
+  html,body{
+    height:100%;
+    margin:0;
+    font-family: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    background: linear-gradient(180deg,#041022 0%, #071522 50%, #0b2535 100%);
+    color: white;
+    -webkit-font-smoothing:antialiased;
+    -moz-osx-font-smoothing:grayscale;
+  }
+
+  /* Keep fixed 16:9 stage centered, scale down on smaller screens */
+  .stage {
+    width: 1920px;
+    height: 1080px;
+    max-width:100%;
+    max-height:100vh;
+    margin: 0 auto;
+    position: relative;
+    overflow: hidden;
+    transform-origin: center top;
+  }
+
+  /* simple responsive downscale for small viewports */
+  @media (max-width:1920px) {
+    body { display:flex; align-items:flex-start; justify-content:center; padding-top:10px; }
+    .stage {
+      width: calc(min(1920px, 98vw));
+      height: calc((min(1920px, 98vw) * 9) / 16);
+    }
+  }
+
+  /* Background stars/snow */
+  .bg-stars {
+    position:absolute; inset:0; pointer-events:none;
+    background-image:
+      radial-gradient(circle at 20% 15%, rgba(255,255,255,0.06) 0 1px, transparent 1px),
+      radial-gradient(circle at 70% 40%, rgba(255,255,255,0.04) 0 1px, transparent 1px);
+    background-size: 100px 100px, 160px 160px;
+    mix-blend-mode: screen;
+    opacity: 0.6;
+    filter: blur(0.3px);
+  }
+
+  /* Center card */
+  .card {
+    position:absolute;
+    left:50%; top:50%;
+    transform:translate(-50%,-50%);
+    width: 1400px;
+    max-width: 90%;
+    background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+    border-radius: 28px;
+    padding: 48px;
+    box-sizing: border-box;
+    display:flex;
+    gap:32px;
+    align-items:center;
+    justify-content:space-between;
+    box-shadow: 0 20px 60px rgba(3,6,10,0.6), inset 0 1px 0 rgba(255,255,255,0.02);
+    border: 1px solid rgba(255,255,255,0.03);
+  }
+
+  .left {
+    flex: 1 1 50%;
+    min-width: 520px;
+  }
+  .right {
+    width: 420px;
+    min-width: 300px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    flex-direction:column;
+    gap:16px;
+  }
+
+  h1 {
+    margin:0;
+    font-size:72px;
+    line-height:1;
+    letter-spacing: -1px;
+    color: var(--accent);
+    text-shadow: 0 6px 18px rgba(0,0,0,0.6);
+  }
+  p.lead {
+    margin:10px 0 28px 0;
+    color:var(--muted);
+    font-size:20px;
+  }
+
+  .countdown {
+    display:flex;
+    gap:18px;
+    align-items:stretch;
+    justify-content:flex-start;
+    flex-wrap:wrap;
+  }
+  .timebox {
+    flex:0 0 auto;
+    background: var(--glass);
+    border-radius:14px;
+    padding: 18px 22px;
+    text-align:center;
+    min-width:140px;
+    box-shadow: 0 8px 20px rgba(2,6,10,0.6);
+    border: 1px solid rgba(255,255,255,0.02);
+  }
+  .num {
+    display:block;
+    font-size:56px;
+    font-weight:700;
+    letter-spacing:-1px;
+  }
+  .label {
+    margin-top:6px;
+    font-size:16px;
+    color:var(--muted);
+  }
+
+  /* small note */
+  .note { font-size:14px; color: rgba(255,255,255,0.6); margin-top:10px; }
+
+  /* right panel design */
+  .right .message {
+    font-size:28px;
+    font-weight:700;
+    text-align:center;
+    color: #fff;
+  }
+  .right .sub { color:var(--muted); text-align:center; font-size:14px; max-width:320px; }
+
+  /* when countdown ends */
+  .celebrate {
+    font-size:86px;
+    font-weight:900;
+    color:#fff;
+    text-align:center;
+    text-shadow: 0 8px 40px rgba(255, 170, 40, 0.08);
+    animation: pop 900ms ease both;
+  }
+  @keyframes pop {
+    from { transform: scale(.85); opacity:0 }
+    to { transform: scale(1); opacity:1 }
+  }
+
+  /* footer small */
+  .footer { position:absolute; left:20px; bottom:16px; right:20px; text-align:center; color:rgba(255,255,255,0.06); font-size:12px; pointer-events:none; }
+  canvas#effects { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
+
+  /* accessibility */
+  .sr-only { position:absolute !important; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0 0 0 0); border:0; }
+</style>
+</head>
+<body>
+  <div class="stage" role="region" aria-label="Christmas countdown" id="stage">
+    <div class="bg-stars" aria-hidden="true"></div>
+
+    <div class="card" id="card">
+      <div class="left">
+        <h1 id="title">Christmas</h1>
+        <p class="lead" id="subtitle">Countdown to Christmas — live and offline.</p>
+
+        <div class="countdown" id="countdown" aria-live="polite">
+          <div class="timebox" id="box-days">
+            <span class="num" id="days">0</span>
+            <span class="label">Days</span>
+          </div>
+          <div class="timebox">
+            <span class="num" id="hours">00</span>
+            <span class="label">Hours</span>
+          </div>
+          <div class="timebox">
+            <span class="num" id="minutes">00</span>
+            <span class="label">Minutes</span>
+          </div>
+          <div class="timebox">
+            <span class="num" id="seconds">00</span>
+            <span class="label">Seconds</span>
+          </div>
+        </div>
+
+        <div class="note">Tip: save this file and open it in your browser. To use in a Canva slide, export as MP4 or upload a screen recording.</div>
+      </div>
+
+      <div class="right">
+        <div id="right-content">
+          <div class="message" id="right-message">Get ready for the holidays 🎄</div>
+          <div class="sub">Automatic: targets the next December 25 at local time. Time shown is local to your device.</div>
+        </div>
+      </div>
+    </div>
+
+    <canvas id="effects" width="1920" height="1080" aria-hidden="true"></canvas>
+
+    <div class="footer">Offline HTML • Resize stage to 1920×1080 for crisp 16:9 output</div>
+    <div class="sr-only" id="aria-status" aria-live="polite"></div>
+  </div>
+
+<script>
+/*
+  Offline Christmas countdown.
+  - Automatically selects next Dec 25 (local time).
+  - To change target manually, set TARGET_DATE_STRING at top.
+*/
+
+// Leave TARGET_DATE_STRING empty to auto-calc next Dec 25 for current year.
+const TARGET_DATE_STRING = ""; // e.g. "2025-12-25T00:00:00" for midnight local
+
+function nextChristmas(now) {
+  if (TARGET_DATE_STRING && TARGET_DATE_STRING.trim().length > 0) {
+    return new Date(TARGET_DATE_STRING);
+  }
+  const year = now.getFullYear();
+  const candidate = new Date(year, 11, 25, 0, 0, 0, 0); // months 0-11 (Dec = 11)
+  if (now <= candidate) return candidate;
+  return new Date(year + 1, 11, 25, 0, 0, 0, 0);
+}
+
+const els = {
+  days: document.getElementById('days'),
+  hours: document.getElementById('hours'),
+  minutes: document.getElementById('minutes'),
+  seconds: document.getElementById('seconds'),
+  rightMessage: document.getElementById('right-message'),
+  ariaStatus: document.getElementById('aria-status'),
+  title: document.getElementById('title'),
+  subtitle: document.getElementById('subtitle'),
+  card: document.getElementById('card'),
+};
+
+let target = nextChristmas(new Date());
+
+function pad(n){ return n.toString().padStart(2,'0'); }
+
+function updateCountdown() {
+  const now = new Date();
+  const diff = target - now;
+  if (diff <= 0) {
+    // Celebration state
+    els.days.textContent = '0';
+    els.hours.textContent = '00';
+    els.minutes.textContent = '00';
+    els.seconds.textContent = '00';
+    els.rightMessage.innerHTML = '<span class="celebrate">Merry Christmas! 🎉</span>';
+    els.ariaStatus.textContent = 'It is Christmas!';
+    launchBurst(); // one-time celebration burst
+    // stop the interval to avoid repeated triggers
+    clearInterval(intervalId);
+    return;
+  }
+  const sec = Math.floor(diff/1000);
+  const days = Math.floor(sec / 86400);
+  const hours = Math.floor((sec % 86400) / 3600);
+  const minutes = Math.floor((sec % 3600) / 60);
+  const seconds = sec % 60;
+
+  els.days.textContent = days.toString();
+  els.hours.textContent = pad(hours);
+  els.minutes.textContent = pad(minutes);
+  els.seconds.textContent = pad(seconds);
+
+  // update accessible status less-frequently (every second is fine too)
+  els.ariaStatus.textContent = `Countdown: ${days} days, ${hours} hours, ${minutes} minutes, ${seconds} seconds until Christmas.`
+}
+
+const intervalId = setInterval(updateCountdown, 1000);
+updateCountdown();
+
+/* -------------------------
+   Canvas confetti / snow effect
+   lightweight particle system
+   ------------------------- */
+const canvas = document.getElementById('effects');
+const ctx = canvas.getContext('2d');
+
+function fitCanvas() {
+  const rect = document.getElementById('stage').getBoundingClientRect();
+  canvas.width = Math.round(rect.width * devicePixelRatio);
+  canvas.height = Math.round(rect.height * devicePixelRatio);
+  canvas.style.width = rect.width + 'px';
+  canvas.style.height = rect.height + 'px';
+  ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+}
+fitCanvas();
+window.addEventListener('resize', fitCanvas);
+
+const particles = [];
+const COLORS = ['#ffdd57','#ff6b6b','#8ce99a','#7bdff6','#fff','#ffc8dd'];
+
+function random(min,max){ return Math.random()*(max-min)+min; }
+
+function spawnSnowOrConfetto(x,y,confetto=true){
+  const count = confetto ? 18 : 30;
+  for (let i=0;i<count;i++){
+    particles.push({
+      x: x + random(-20,20),
+      y: y + random(-20,20),
+      vx: random(-2,2) * (confetto?2:1),
+      vy: random(1,5) * (confetto?1:0.25) + (confetto? -1 : 0.5),
+      size: confetto ? random(6,14) : random(1,4),
+      life: random(1.2,3.5),
+      color: confetto ? COLORS[Math.floor(Math.random()*COLORS.length)] : 'rgba(255,255,255,0.9)',
+      rotation: random(0,Math.PI*2),
+      angularV: random(-0.2,0.2),
+      gravity: confetto ? 0.06 : 0.02,
+      drag: 0.992
+    });
+  }
+}
+
+let lastTime = performance.now();
+let runningBursts = 0;
+
+function updateAndDraw(t) {
+  const dt = (t - lastTime)/1000;
+  lastTime = t;
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  for (let i = particles.length-1; i>=0; i--){
+    const p = particles[i];
+    p.vx *= p.drag;
+    p.vy += p.gravity;
+    p.x += p.vx * (60*dt);
+    p.y += p.vy * (60*dt);
+    p.rotation += p.angularV;
+
+    p.life -= dt;
+    if (p.life <= 0 || p.y > canvas.height / devicePixelRatio + 30) {
+      particles.splice(i,1);
+      continue;
+    }
+
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    ctx.rotate(p.rotation);
+    if (p.size > 5) {
+      // draw rectangle confetti
+      ctx.fillStyle = p.color;
+      ctx.fillRect(-p.size/2, -p.size/2, p.size, p.size*0.6);
+    } else {
+      // draw snow dot
+      ctx.beginPath();
+      ctx.arc(0,0,p.size,0,Math.PI*2);
+      ctx.fillStyle = p.color;
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  // occasional gentle snow spawn across top
+  if (Math.random() < 0.12) {
+    spawnSnowOrConfetto(random(0, canvas.width / devicePixelRatio), -10, false);
+  }
+
+  requestAnimationFrame(updateAndDraw);
+}
+requestAnimationFrame(updateAndDraw);
+
+/* One-time celebration burst when countdown completes */
+function launchBurst() {
+  // create several bursts centered on card
+  const rect = document.getElementById('card').getBoundingClientRect();
+  const cx = rect.left + rect.width/2;
+  const cy = rect.top + rect.height/2;
+  // spawn confetti from multiple nearby points
+  for (let i=0;i<5;i++){
+    spawnSnowOrConfetto(cx + random(-80,80), cy + random(-40,80), true);
+  }
+  // also a snow shower
+  setTimeout(()=> {
+    for (let i=0;i<40;i++){
+      spawnSnowOrConfetto(random(0, canvas.width / devicePixelRatio), -random(10,400), false);
+    }
+  }, 120);
+
+  // small extra pulses
+  runningBursts++;
+  if (runningBursts < 3) {
+    setTimeout(launchBurst, 800);
+  }
+}
+
+/* Accessibility: allow keyboard press 'r' to reset target to next year's Xmas */
+window.addEventListener('keydown', (e) => {
+  if (e.key.toLowerCase() === 'r') {
+    target = nextChristmas(new Date());
+    clearInterval(intervalId);
+    // restart
+    setInterval(updateCountdown, 1000);
+  }
+});
+
+// Helpful: clicking the right panel triggers a manual burst for presentation effect
+document.getElementById('right-content').addEventListener('click', (ev) => {
+  const rect = document.getElementById('card').getBoundingClientRect();
+  spawnSnowOrConfetto(ev.clientX, ev.clientY, true);
+});
+</script>
+</body>
+</html>
